@@ -2,11 +2,11 @@
 local plr = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local gui = Instance.new("ScreenGui", plr.PlayerGui)
-gui.Name = "FlingGui_V3_WL"
+gui.Name = "FlingGui_V3_WL_Fix"
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 450, 0, 320) -- Aumentado para caber a segunda lista
+frame.Size = UDim2.new(0, 450, 0, 320)
 frame.Position = UDim2.new(0.5, -225, 0.5, -160)
 frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 frame.Active = true
@@ -79,42 +79,35 @@ local whitelist = {}
 getgenv().OldPos = nil
 getgenv().FPDH = workspace.FallenPartsDestroyHeight
 
--- REFRESH DAS LISTAS
+-- REFRESH DAS LISTAS (OS MESMOS PLAYERS NAS DUAS)
 local function refreshLists()
-    -- Limpa ambas as listas
     for _, v in ipairs(listFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
     for _, v in ipairs(wlFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
     
     for _, p in ipairs(game.Players:GetPlayers()) do
         if p ~= plr then
-            -- Se não estiver na WL, vai pra lista de alvos
-            if not whitelist[p.Name] then
-                local btn = Instance.new("TextButton")
-                btn.Size = UDim2.new(1, -6, 0, 24)
-                btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-                btn.TextColor3 = Color3.new(1, 1, 1)
-                btn.TextScaled = true
-                btn.Text = p.Name
-                btn.Parent = listFrame
-                btn.MouseButton1Click:Connect(function() 
-                    box.Text = p.Name 
-                    whitelist[p.Name] = true -- Adiciona na WL ao clicar
-                    refreshLists()
-                end)
-            else
-                -- Se estiver na WL, aparece na lista da direita para remover
-                local btn = Instance.new("TextButton")
-                btn.Size = UDim2.new(1, -6, 0, 24)
-                btn.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
-                btn.TextColor3 = Color3.new(1, 1, 1)
-                btn.TextScaled = true
-                btn.Text = "[WL] " .. p.Name
-                btn.Parent = wlFrame
-                btn.MouseButton1Click:Connect(function()
-                    whitelist[p.Name] = nil -- Remove da WL
-                    refreshLists()
-                end)
-            end
+            -- Botão na lista de Alvos
+            local btnTarget = Instance.new("TextButton")
+            btnTarget.Size = UDim2.new(1, -6, 0, 24)
+            btnTarget.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            btnTarget.TextColor3 = Color3.new(1, 1, 1)
+            btnTarget.TextScaled = true
+            btnTarget.Text = p.Name
+            btnTarget.Parent = listFrame
+            btnTarget.MouseButton1Click:Connect(function() box.Text = p.Name end)
+
+            -- Botão na lista de Whitelist
+            local btnWL = Instance.new("TextButton")
+            btnWL.Size = UDim2.new(1, -6, 0, 24)
+            btnWL.BackgroundColor3 = whitelist[p.Name] and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(60, 60, 60)
+            btnWL.TextColor3 = Color3.new(1, 1, 1)
+            btnWL.TextScaled = true
+            btnWL.Text = whitelist[p.Name] and "[SAFE] " .. p.Name or p.Name
+            btnWL.Parent = wlFrame
+            btnWL.MouseButton1Click:Connect(function()
+                whitelist[p.Name] = not whitelist[p.Name]
+                refreshLists() -- Atualiza as cores
+            end)
         end
     end
 end
@@ -123,9 +116,9 @@ refreshLists()
 game.Players.PlayerAdded:Connect(refreshLists)
 game.Players.PlayerRemoving:Connect(refreshLists)
 
--- FUNÇÃO CORE (MÉTODO SKID ORIGINAL MANTIDO)
+-- FUNÇÃO CORE (MÉTODO SKID ORIGINAL)
 local function SkidFling(TargetPlayer)
-    if not TargetPlayer or whitelist[TargetPlayer.Name] then return end -- Proteção WL
+    if not TargetPlayer or whitelist[TargetPlayer.Name] then return end
 
     local Character = plr.Character
     local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
@@ -214,27 +207,25 @@ toggle.MouseButton1Click:Connect(function()
 
         local target = nil
         for _, p in pairs(game.Players:GetPlayers()) do
-            if p.Name:lower():find(box.Text:lower()) and not whitelist[p.Name] then 
-                target = p 
-                break 
-            end
+            if p.Name:lower():find(box.Text:lower()) then target = p break end
         end
         
-        if target then
+        if target and not whitelist[target.Name] then
             toggle.Text = "Flinging..."
             toggle.BackgroundColor3 = Color3.fromRGB(0,170,0)
             task.spawn(function()
                 while running do
-                    if whitelist[target.Name] then running = false break end
+                    if not target or whitelist[target.Name] then break end
                     SkidFling(target)
                     task.wait(0.1)
                 end
                 toggle.Text = "Fling OFF"
                 toggle.BackgroundColor3 = Color3.fromRGB(170,0,0)
+                running = false
             end)
         else
             running = false
-            toggle.Text = "Safe/Not Found"
+            toggle.Text = "Protegido/Off"
             task.wait(1)
             toggle.Text = "Fling OFF"
             toggle.BackgroundColor3 = Color3.fromRGB(170,0,0)
